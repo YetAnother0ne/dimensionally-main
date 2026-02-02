@@ -24,6 +24,46 @@ interface ModelLoaderProps {
   fileType: string;
 }
 
+function GltfModel({ url }: { url: string }) {
+  const gltf = useGLTF(url);
+  const cloned = gltf.scene.clone();
+  // Center and scale the model
+  const box = new THREE.Box3().setFromObject(cloned);
+  const center = box.getCenter(new THREE.Vector3());
+  const size = box.getSize(new THREE.Vector3());
+  const maxDim = Math.max(size.x, size.y, size.z);
+
+  cloned.position.sub(center);
+  if (maxDim > 0) {
+    cloned.scale.multiplyScalar(2 / maxDim);
+  }
+
+  return <primitive object={cloned} />;
+}
+
+function FbxModel({ url }: { url: string }) {
+  const fbx = useFBX(url);
+  const cloned = fbx.clone();
+
+  // Center and scale
+  const box = new THREE.Box3().setFromObject(cloned);
+  const center = box.getCenter(new THREE.Vector3());
+  const size = box.getSize(new THREE.Vector3());
+  const maxDim = Math.max(size.x, size.y, size.z);
+
+  cloned.position.sub(center);
+  if (maxDim > 0) {
+    cloned.scale.multiplyScalar(2 / maxDim);
+  }
+
+  return <primitive object={cloned} />;
+}
+
+function ObjModel({ objModel }: { objModel: THREE.Group | null }) {
+  if (!objModel) return null;
+  return <primitive object={objModel} />;
+}
+
 function ModelLoader({ url, fileType }: ModelLoaderProps) {
   const [objModel, setObjModel] = useState<THREE.Group | null>(null);
 
@@ -36,53 +76,40 @@ function ModelLoader({ url, fileType }: ModelLoaderProps) {
         const center = box.getCenter(new THREE.Vector3());
         const size = box.getSize(new THREE.Vector3());
         const maxDim = Math.max(size.x, size.y, size.z);
-        
+
         obj.position.sub(center);
         if (maxDim > 0) {
           obj.scale.multiplyScalar(2 / maxDim);
         }
-        
+
         // Add default material if none exists
         obj.traverse((child) => {
           if (child instanceof THREE.Mesh && !child.material) {
             child.material = new THREE.MeshStandardMaterial({ color: "#8b5cf6" });
           }
         });
-        
+
         setObjModel(obj);
       });
+    } else {
+      setObjModel(null);
     }
   }, [url, fileType]);
 
   if (fileType === "gltf" || fileType === "glb") {
-    const gltf = useGLTF(url);
-    return <primitive object={gltf.scene.clone()} />;
+    return <GltfModel url={url} />;
   }
 
   if (fileType === "fbx") {
-    const fbx = useFBX(url);
-    const cloned = fbx.clone();
-    
-    // Center and scale
-    const box = new THREE.Box3().setFromObject(cloned);
-    const center = box.getCenter(new THREE.Vector3());
-    const size = box.getSize(new THREE.Vector3());
-    const maxDim = Math.max(size.x, size.y, size.z);
-    
-    cloned.position.sub(center);
-    if (maxDim > 0) {
-      cloned.scale.multiplyScalar(2 / maxDim);
-    }
-    
-    return <primitive object={cloned} />;
+    return <FbxModel url={url} />;
   }
 
-  if (fileType === "obj" && objModel) {
-    return <primitive object={objModel} />;
+  if (fileType === "obj") {
+    return <ObjModel objModel={objModel} />;
   }
 
   return <LoadingFallback />;
-}
+} 
 
 export function ModelPreview({ file, className = "" }: ModelPreviewProps) {
   const [objectUrl, setObjectUrl] = useState<string | null>(null);
