@@ -9,7 +9,7 @@ jobs:
   build-and-deploy:
     runs-on: ubuntu-latest
     permissions:
-      contents: read
+      contents: write
       pages: write
       id-token: write
     steps:
@@ -41,9 +41,28 @@ jobs:
           VITE_BASE: '/dimensionally-main/'
         run: npm run build
 
-      - name: Deploy to GitHub Pages (gh-pages)
-        uses: peaceiris/actions-gh-pages@v3
-        with:
-          personal_token: ${{ secrets.PAGES_TOKEN }}
-          publish_dir: ./dimensionally-main/dist
-          publish_branch: gh-pages
+      - name: Prepare docs folder
+        run: |
+          rm -rf docs || true
+          mkdir -p docs
+          cp -R dimensionally-main/dist/* docs/
+
+      - name: Commit and push docs to main
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add docs
+          git commit -m "chore(docs): update GitHub Pages site [skip ci]" || echo "No changes to commit"
+          git push origin HEAD:main || echo "Push failed"
+
+      - name: Configure Pages to use main/docs
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          # Try to create pages site, fall back to patch if it already exists
+          if echo '{"source":{"branch":"main","path":"/docs"}}' | gh api -X POST /repos/${{ github.repository }}/pages -H "Content-Type: application/json" --input - ; then
+            echo "Pages configured (created)"
+          else
+            echo "POST failed, attempting PATCH"
+            echo '{"source":{"branch":"main","path":"/docs"}}' | gh api -X PATCH /repos/${{ github.repository }}/pages -H "Content-Type: application/json" --input - || echo "PATCH failed"
+          fi
