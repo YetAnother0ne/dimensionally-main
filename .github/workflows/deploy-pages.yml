@@ -32,9 +32,11 @@ jobs:
           node-version: '18'
 
       - name: Install dependencies
+        working-directory: ./dimensionally-main
         run: npm install --silent
 
       - name: Build
+        working-directory: ./dimensionally-main
         env:
           VITE_BASE: '/dimensionally-main/'
         run: npm run build
@@ -43,5 +45,5 @@ jobs:
         uses: peaceiris/actions-gh-pages@v3
         with:
           personal_token: ${{ secrets.GITHUB_TOKEN }}
-          publish_dir: ./dist
+          publish_dir: ./dimensionally-main/dist
           publish_branch: gh-pages
